@@ -1,53 +1,12 @@
+mod eq;
+pub use crate::eq::EQSTATE;
 use nih_plug::prelude::*;
-use std::{borrow::BorrowMut, f32::consts::PI, sync::Arc};
+use std::{f32::consts::PI, sync::Arc};
 
 // This is a shortened version of the gain example with most comments removed, check out
 // https://github.com/robbert-vdh/nih-plug/blob/master/plugins/examples/gain/src/lib.rs to get
 // started
-#[derive(Clone, Copy)]
-struct EQSTATE {
-    //filter 1
-    lf: f32,
-    f1p0: f32,
-    f1p1: f32,
-    f1p2: f32,
-    f1p3: f32,
 
-    //filter2
-    hf: f32,
-    f2p0: f32,
-    f2p1: f32,
-    f2p2: f32,
-    f2p3: f32,
-
-    //sample history
-    sdm1: f32,
-    sdm2: f32,
-    sdm3: f32,
-
-    //gain controls
-    lg: f32,
-    mg: f32,
-    hg: f32,
-
-    //samplerate
-    sr: f32,
-}
-
-impl EQSTATE {
-    fn SetLowpassFrequency(&mut self, frequency: f32) {
-        self.lf = self.CalculateBandpassFrequency(frequency);
-    }
-
-    fn CalculateBandpassFrequency(&self, frequency: f32) -> f32 {
-        return 2.0 * f32::sin(PI * (frequency / self.sr));
-    }
-}
-
-const LOWFREQ: f32 = 880.0;
-const HIGHFREQ: f32 = 5000.0;
-
-const VSA: f32 = f32::EPSILON;
 struct MisoFirst {
     params: Arc<MisoFirstParams>,
     es: EQSTATE,
@@ -208,16 +167,8 @@ impl Plugin for MisoFirst {
         _context: &mut impl InitContext<Self>,
     ) -> bool {
         //init EQ STATE
-        self.es.sr = _buffer_config.sample_rate;
-        self.es.lg = 1.0;
-        self.es.mg = 1.0;
-        self.es.hg = 1.0;
+        self.es.init(_buffer_config.sample_rate);
 
-        // self.es.lf = 2.0 * f32::sin(PI * (LOWFREQ / _buffer_config.sample_rate));
-        self.es.hf = 2.0 * f32::sin(PI * (HIGHFREQ / _buffer_config.sample_rate));
-        self.es.SetLowpassFrequency(LOWFREQ);
-
-        nih_warn!("Finished init");
         true
     }
 
@@ -241,52 +192,14 @@ impl Plugin for MisoFirst {
             self.es.hg = self.params.high_gain.smoothed.next();
 
             for sample in channel_samples {
-                do_3band(sample, self.es.borrow_mut());
+                // do_3band(sample, self.es.borrow_mut());
+                self.es.do_3band(sample);
                 *sample *= gain;
             }
         }
 
         return ProcessStatus::Normal;
     }
-}
-
-fn do_3band<'a>(sample: &'a mut f32, es: &mut EQSTATE) -> &'a mut f32 {
-    let mut l: f32;
-    let mut m: f32;
-    let mut h: f32;
-
-    //lowpass
-    es.f1p0 += (es.lf * (sample.clone() - es.f1p0)) + VSA;
-    es.f1p1 += es.lf * (es.f1p0 - es.f1p1);
-    es.f1p2 += es.lf * (es.f1p1 - es.f1p2);
-    es.f1p3 += es.lf * (es.f1p2 - es.f1p3);
-
-    l = es.f1p3;
-
-    //highpass
-    es.f2p0 += (es.hf * (sample.clone() - es.f2p0)) + VSA;
-    es.f2p1 += es.hf * (es.f2p0 - es.f2p1);
-    es.f2p2 += es.hf * (es.f2p1 - es.f2p2);
-    es.f2p3 += es.hf * (es.f2p2 - es.f2p3);
-
-    h = es.sdm3 - es.f2p3;
-
-    //calc midrange (signal - (low + high))
-    m = es.sdm3 - (h + l);
-
-    //scale combine and store
-    l *= es.lg;
-    m *= es.mg;
-    h *= es.hg;
-
-    //shuffle history buffer
-    es.sdm3 = es.sdm2;
-    es.sdm2 = es.sdm1;
-    es.sdm1 = sample.clone();
-
-    *sample = l + m + h;
-
-    return sample;
 }
 
 impl ClapPlugin for MisoFirst {
