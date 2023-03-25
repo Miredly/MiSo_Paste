@@ -184,16 +184,15 @@ impl Plugin for MisoFirst {
         _context: &mut impl ProcessContext<Self>,
     ) -> ProcessStatus {
         for channel_samples in buffer.iter_samples() {
-            // Smoothing is optionally built into the parameters themselves
+            //get input
             let gain = self.params.gain.smoothed.next();
-
             self.es.lg = self.params.low_gain.smoothed.next();
             self.es.mg = self.params.mid_gain.smoothed.next();
             self.es.hg = self.params.high_gain.smoothed.next();
 
+            //processing
             for sample in channel_samples {
-                // do_3band(sample, self.es.borrow_mut());
-                self.es.do_3band(sample);
+                self.es.process_3band(sample);
                 *sample *= gain;
             }
         }

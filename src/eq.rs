@@ -1,3 +1,5 @@
+//translated from the C++ example here: https://www.musicdsp.org/en/latest/Filters/236-3-band-equaliser.html
+
 use std::f32::consts::PI;
 
 const VSA: f32 = f32::EPSILON;
@@ -42,18 +44,23 @@ impl EQSTATE {
         self.mg = 1.0;
         self.hg = 1.0;
 
-        self.hf = 2.0 * f32::sin(PI * (HIGHFREQ / samplerate));
-        self.set_lowpass_frequency(LOWFREQ);
+        self.set_highband_frequency(HIGHFREQ);
+        self.set_lowband_frequency(LOWFREQ);
     }
-    pub fn set_lowpass_frequency(&mut self, frequency: f32) {
+
+    pub fn set_lowband_frequency(&mut self, frequency: f32) {
         self.lf = self.calculate_bandpass_frequency(frequency);
+    }
+
+    pub fn set_highband_frequency(&mut self, frequency: f32) {
+        self.hf = self.calculate_bandpass_frequency(frequency)
     }
 
     fn calculate_bandpass_frequency(&self, frequency: f32) -> f32 {
         return 2.0 * f32::sin(PI * (frequency / self.sr));
     }
 
-    pub fn do_3band<'a>(&'a mut self, sample: &'a mut f32) -> &'a mut f32 {
+    pub fn process_3band<'a>(&'a mut self, sample: &'a mut f32) -> &'a mut f32 {
         let mut l: f32;
         let mut m: f32;
         let mut h: f32;
