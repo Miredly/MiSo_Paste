@@ -1,7 +1,7 @@
 mod eq;
 pub use crate::eq::EQSTATE;
 use nih_plug::prelude::*;
-use std::{f32::consts::PI, sync::Arc};
+use std::sync::Arc;
 
 // This is a shortened version of the gain example with most comments removed, check out
 // https://github.com/robbert-vdh/nih-plug/blob/master/plugins/examples/gain/src/lib.rs to get
@@ -16,29 +16,7 @@ impl Default for MisoFirst {
     fn default() -> Self {
         Self {
             params: Arc::new(MisoFirstParams::default()),
-            es: EQSTATE {
-                lf: 0.0,
-                f1p0: 0.0,
-                f1p1: 0.0,
-                f1p2: 0.0,
-                f1p3: 0.0,
-
-                hf: 0.0,
-                f2p0: 0.0,
-                f2p1: 0.0,
-                f2p2: 0.0,
-                f2p3: 0.0,
-
-                sdm1: 0.0,
-                sdm2: 0.0,
-                sdm3: 0.0,
-
-                lg: 1.0,
-                mg: 1.0,
-                hg: 1.0,
-
-                sr: 44100.0,
-            },
+            es: EQSTATE::default(),
         }
     }
 }

@@ -9,23 +9,23 @@ const HIGHFREQ: f32 = 5000.0;
 #[derive(Clone, Copy)]
 pub struct EQSTATE {
     //filter 1
-    pub lf: f32,
-    pub f1p0: f32,
-    pub f1p1: f32,
-    pub f1p2: f32,
-    pub f1p3: f32,
+    lf: f32,
+    f1p0: f32,
+    f1p1: f32,
+    f1p2: f32,
+    f1p3: f32,
 
     //filter2
-    pub hf: f32,
-    pub f2p0: f32,
-    pub f2p1: f32,
-    pub f2p2: f32,
-    pub f2p3: f32,
+    hf: f32,
+    f2p0: f32,
+    f2p1: f32,
+    f2p2: f32,
+    f2p3: f32,
 
     //sample history
-    pub sdm1: f32,
-    pub sdm2: f32,
-    pub sdm3: f32,
+    sdm1: f32,
+    sdm2: f32,
+    sdm3: f32,
 
     //gain controls
     pub lg: f32,
@@ -34,6 +34,34 @@ pub struct EQSTATE {
 
     //samplerate
     pub sr: f32,
+}
+
+impl Default for EQSTATE {
+    fn default() -> Self {
+        Self {
+            lf: 0.0,
+            f1p0: 0.0,
+            f1p1: 0.0,
+            f1p2: 0.0,
+            f1p3: 0.0,
+
+            hf: 0.0,
+            f2p0: 0.0,
+            f2p1: 0.0,
+            f2p2: 0.0,
+            f2p3: 0.0,
+
+            sdm1: 0.0,
+            sdm2: 0.0,
+            sdm3: 0.0,
+
+            lg: 1.0,
+            mg: 1.0,
+            hg: 1.0,
+
+            sr: 44100.0,
+        }
+    }
 }
 
 impl EQSTATE {
