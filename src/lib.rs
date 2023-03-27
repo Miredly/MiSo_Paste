@@ -35,6 +35,10 @@ struct MisoFirstParams {
     pub mid_gain: FloatParam,
     #[id = "high gain"]
     pub high_gain: FloatParam,
+    #[id = "low frequency"]
+    pub low_frequency: FloatParam,
+    #[id = "high frequency"]
+    pub high_frequency: FloatParam,
 }
 
 impl Default for MisoFirstParams {
@@ -90,6 +94,26 @@ impl Default for MisoFirstParams {
                 FloatRange::Linear {
                     min: 0.01,
                     max: 2.0,
+                },
+            )
+            .with_smoother(SmoothingStyle::Logarithmic(50.0)),
+
+            low_frequency: FloatParam::new(
+                "low frequency",
+                880.0,
+                FloatRange::Linear {
+                    min: 110.0,
+                    max: 5000.0,
+                },
+            )
+            .with_smoother(SmoothingStyle::Logarithmic(50.0)),
+
+            high_frequency: FloatParam::new(
+                "high frequency",
+                5000.0,
+                FloatRange::Linear {
+                    min: 5000.0,
+                    max: 12000.0,
                 },
             )
             .with_smoother(SmoothingStyle::Logarithmic(50.0)),
@@ -164,9 +188,15 @@ impl Plugin for MisoFirst {
         for channel_samples in buffer.iter_samples() {
             //get input
             let gain = self.params.gain.smoothed.next();
+
             self.es.lg = self.params.low_gain.smoothed.next();
             self.es.mg = self.params.mid_gain.smoothed.next();
             self.es.hg = self.params.high_gain.smoothed.next();
+
+            self.es
+                .set_lowband_frequency(self.params.low_frequency.smoothed.next());
+            self.es
+                .set_highband_frequency(self.params.high_frequency.smoothed.next());
 
             //processing
             for sample in channel_samples {
