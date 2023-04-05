@@ -39,10 +39,10 @@ struct MisoFirstParams {
     pub mid_gain: FloatParam,
     #[id = "high gain"]
     pub high_gain: FloatParam,
-    #[id = "low frequency"]
-    pub low_frequency: FloatParam,
-    #[id = "high frequency"]
-    pub high_frequency: FloatParam,
+    #[id = "tape speed"]
+    pub tape_speed: FloatParam,
+    #[id = "tape length"]
+    pub tape_length: FloatParam,
     #[id = "clear"]
     pub clear: BoolParam,
     #[id = "erase"]
@@ -97,22 +97,22 @@ impl Default for MisoFirstParams {
             )
             .with_smoother(SmoothingStyle::Logarithmic(50.0)),
 
-            low_frequency: FloatParam::new(
-                "low frequency",
-                880.0,
+            tape_speed: FloatParam::new(
+                "tape speed",
+                1.0,
                 FloatRange::Linear {
-                    min: 110.0,
-                    max: 5000.0,
+                    min: 0.10,
+                    max: 3.0,
                 },
             )
             .with_smoother(SmoothingStyle::Logarithmic(50.0)),
 
-            high_frequency: FloatParam::new(
-                "high frequency",
-                5000.0,
+            tape_length: FloatParam::new(
+                "tape length",
+                2.0,
                 FloatRange::Linear {
-                    min: 5000.0,
-                    max: 12000.0,
+                    min: 2.0,
+                    max: 60.0,
                 },
             )
             .with_smoother(SmoothingStyle::Logarithmic(50.0)),
@@ -198,10 +198,10 @@ impl Plugin for MisoFirst {
             self.es.mg = self.params.mid_gain.smoothed.next();
             self.es.hg = self.params.high_gain.smoothed.next();
 
-            self.es
-                .set_lowband_frequency(self.params.low_frequency.smoothed.next());
-            self.es
-                .set_highband_frequency(self.params.high_frequency.smoothed.next());
+            self.tape
+                .set_tape_length(self.params.tape_length.smoothed.next());
+            self.tape
+                .set_tape_speed(self.params.tape_speed.smoothed.next());
 
             if (self.params.clear.value()) {
                 self.tape.clear();
