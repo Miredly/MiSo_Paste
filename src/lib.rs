@@ -1,5 +1,7 @@
 mod eq;
 pub use crate::eq::EQSTATE;
+mod tapeloop;
+pub use crate::tapeloop::TAPESTATE;
 use nih_plug::prelude::*;
 use std::sync::Arc;
 
@@ -10,6 +12,7 @@ use std::sync::Arc;
 struct MisoFirst {
     params: Arc<MisoFirstParams>,
     es: EQSTATE,
+    tape: TAPESTATE,
 }
 
 impl Default for MisoFirst {
@@ -17,6 +20,7 @@ impl Default for MisoFirst {
         Self {
             params: Arc::new(MisoFirstParams::default()),
             es: EQSTATE::default(),
+            tape: TAPESTATE::default(),
         }
     }
 }
@@ -39,6 +43,10 @@ struct MisoFirstParams {
     pub low_frequency: FloatParam,
     #[id = "high frequency"]
     pub high_frequency: FloatParam,
+    #[id = "clear"]
+    pub clear: BoolParam,
+    #[id = "erase"]
+    pub erase: BoolParam,
 }
 
 impl Default for MisoFirstParams {
@@ -49,24 +57,15 @@ impl Default for MisoFirstParams {
             // as decibels is easier to work with, but requires a conversion for every sample.
             gain: FloatParam::new(
                 "Gain",
-                util::db_to_gain(0.0),
-                FloatRange::Skewed {
-                    min: util::db_to_gain(-30.0),
-                    max: util::db_to_gain(30.0),
-                    // This makes the range appear as if it was linear when displaying the values as
-                    // decibels
-                    factor: FloatRange::gain_skew_factor(-30.0, 30.0),
+                0.01,
+                FloatRange::Linear {
+                    min: 0.01,
+                    max: 1.0,
                 },
             )
             // Because the gain parameter is stored as linear gain instead of storing the value as
             // decibels, we need logarithmic smoothing
-            .with_smoother(SmoothingStyle::Logarithmic(50.0))
-            .with_unit(" dB")
-            // There are many predefined formatters we can use here. If the gain was stored as
-            // decibels instead of as a linear gain value, we could have also used the
-            // `.with_step_size(0.1)` function to get internal rounding.
-            .with_value_to_string(formatters::v2s_f32_gain_to_db(2))
-            .with_string_to_value(formatters::s2v_f32_gain_to_db()),
+            .with_smoother(SmoothingStyle::Logarithmic(50.0)),
 
             low_gain: FloatParam::new(
                 "low gain",
@@ -117,6 +116,10 @@ impl Default for MisoFirstParams {
                 },
             )
             .with_smoother(SmoothingStyle::Logarithmic(50.0)),
+
+            clear: BoolParam::new("clear", false),
+
+            erase: BoolParam::new("erase", false),
         }
     }
 }
@@ -170,6 +173,8 @@ impl Plugin for MisoFirst {
     ) -> bool {
         //init EQ STATE
         self.es.init(_buffer_config.sample_rate);
+        //init TAPESTATE
+        self.tape.init(_buffer_config.sample_rate);
 
         true
     }
@@ -198,10 +203,22 @@ impl Plugin for MisoFirst {
             self.es
                 .set_highband_frequency(self.params.high_frequency.smoothed.next());
 
+            if (self.params.clear.value()) {
+                self.tape.clear();
+            }
+
             //processing
             for sample in channel_samples {
+                //EQ
                 self.es.process_3band(sample);
-                *sample *= gain;
+                //TAPE
+                self.tape.inc_sample_idx();
+                if (self.params.erase.value()) {
+                    self.tape.to_buffer(&mut 0.0, Some(gain));
+                } else {
+                    self.tape.to_buffer(sample, Some(gain));
+                }
+                *sample += self.tape.from_buffer();
             }
         }
 

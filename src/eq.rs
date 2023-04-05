@@ -88,7 +88,7 @@ impl EQSTATE {
         return 2.0 * f32::sin(PI * (frequency / self.sr));
     }
 
-    pub fn process_3band<'a>(&'a mut self, sample: &'a mut f32) -> &'a mut f32 {
+    pub fn process_3band<'a>(&'a mut self, sample: &'a mut f32) {
         let mut l: f32;
         let mut m: f32;
         let mut h: f32;
@@ -123,7 +123,5 @@ impl EQSTATE {
         self.sdm1 = sample.clone();
 
         *sample = l + m + h;
-
-        return sample;
     }
 }
