@@ -58,6 +58,7 @@ impl TAPESTATE {
     }
 
     pub fn clear(&mut self) {
+        nih_dbg!("clear called");
         //TODO - come up with a more elegant solution to make sure this only happens once per click
         if self.buffer[0] != 0.0 {
             self.buffer.fill(0.0);

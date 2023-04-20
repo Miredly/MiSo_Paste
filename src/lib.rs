@@ -6,14 +6,16 @@ use nih_plug::prelude::*;
 use nih_plug_egui::{create_egui_editor, egui, widgets, EguiState};
 use std::sync::Arc;
 
-// This is a shortened version of the gain example with most comments removed, check out
-// https://github.com/robbert-vdh/nih-plug/blob/master/plugins/examples/gain/src/lib.rs to get
-// started
+/// The time it takes for the peak meter to decay by 12 dB after switching to complete silence.
+const PEAK_METER_DECAY_MS: f64 = 150.0;
 
 struct MisoFirst {
     params: Arc<MisoFirstParams>,
     es: EQSTATE,
     tape: TAPESTATE,
+    //GUI stuff
+    peak_meter_decay_weight: f32,
+    peak_meter: Arc<AtomicF32>,
 }
 
 impl Default for MisoFirst {
@@ -22,6 +24,9 @@ impl Default for MisoFirst {
             params: Arc::new(MisoFirstParams::default()),
             es: EQSTATE::default(),
             tape: TAPESTATE::default(),
+            //GUI
+            peak_meter_decay_weight: 1.0,
+            peak_meter: Arc::new(AtomicF32::new(util::MINUS_INFINITY_DB)),
         }
     }
 }
@@ -173,7 +178,7 @@ impl Plugin for MisoFirst {
 
     fn editor(&self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
         let params = self.params.clone();
-        // let peak_meter = self.peak_meter.clone();
+        let peak_meter = self.peak_meter.clone();
         create_egui_editor(
             self.params.editor_state.clone(),
             (),
@@ -232,8 +237,7 @@ impl Plugin for MisoFirst {
                                         None => params.tape_length.value() as f64,
                                     }
                                 })
-                                .vertical()
-                                .suffix(" seconds"),
+                                .vertical(),
                             );
                         });
 
@@ -247,20 +251,20 @@ impl Plugin for MisoFirst {
                     });
 
                     // TODO: Add a proper custom widget instead of reusing a progress bar
-                    // let peak_meter =
-                    //     util::gain_to_db(peak_meter.load(std::sync::atomic::Ordering::Relaxed));
-                    // let peak_meter_text = if peak_meter > util::MINUS_INFINITY_DB {
-                    //     format!("{peak_meter:.1} dBFS")
-                    // } else {
-                    //     String::from("-inf dBFS")
-                    // };
+                    let peak_meter =
+                        util::gain_to_db(peak_meter.load(std::sync::atomic::Ordering::Relaxed));
+                    let peak_meter_text = if peak_meter > util::MINUS_INFINITY_DB {
+                        format!("{peak_meter:.1} dBFS")
+                    } else {
+                        String::from("-inf dBFS")
+                    };
 
-                    // let peak_meter_normalized = (peak_meter + 60.0) / 60.0;
-                    // ui.allocate_space(egui::Vec2::splat(2.0));
-                    // ui.add(
-                    //     egui::widgets::ProgressBar::new(peak_meter_normalized)
-                    //         .text(peak_meter_text),
-                    // );
+                    let peak_meter_normalized = (peak_meter + 60.0) / 60.0;
+                    ui.allocate_space(egui::Vec2::splat(2.0));
+                    ui.add(
+                        egui::widgets::ProgressBar::new(peak_meter_normalized)
+                            .text(peak_meter_text),
+                    );
                 });
             },
         )
@@ -269,13 +273,19 @@ impl Plugin for MisoFirst {
     fn initialize(
         &mut self,
         _audio_io_layout: &AudioIOLayout,
-        _buffer_config: &BufferConfig,
+        buffer_config: &BufferConfig,
         _context: &mut impl InitContext<Self>,
     ) -> bool {
         //init EQ STATE
-        self.es.init(_buffer_config.sample_rate);
+        self.es.init(buffer_config.sample_rate);
         //init TAPESTATE
-        self.tape.init(_buffer_config.sample_rate);
+        self.tape.init(buffer_config.sample_rate);
+
+        // After `PEAK_METER_DECAY_MS` milliseconds of pure silence, the peak meter's value should
+        // have dropped by 12 dB
+        self.peak_meter_decay_weight = 0.25f64
+            .powf((buffer_config.sample_rate as f64 * PEAK_METER_DECAY_MS / 1000.0).recip())
+            as f32;
 
         true
     }
@@ -291,7 +301,15 @@ impl Plugin for MisoFirst {
         _aux: &mut AuxiliaryBuffers,
         _context: &mut impl ProcessContext<Self>,
     ) -> ProcessStatus {
+        if self.params.clear.value() {
+            nih_dbg!("clear");
+            self.tape.clear();
+        }
+
         for channel_samples in buffer.iter_samples() {
+            let mut amplitude = 0.0;
+            let num_samples = channel_samples.len();
+
             //get input
             let gain = self.params.gain.smoothed.next();
 
@@ -303,10 +321,6 @@ impl Plugin for MisoFirst {
                 .set_tape_length(self.params.tape_length.smoothed.next());
             self.tape
                 .set_tape_speed(self.params.tape_speed.smoothed.next());
-
-            if self.params.clear.value() {
-                self.tape.clear();
-            }
 
             //processing
             for sample in channel_samples {
@@ -320,6 +334,21 @@ impl Plugin for MisoFirst {
                     self.tape.to_buffer(sample, Some(gain));
                 }
                 *sample += self.tape.from_buffer();
+                amplitude += *sample;
+            }
+
+            if self.params.editor_state.is_open() {
+                amplitude = (amplitude / num_samples as f32).abs();
+                let current_peak_meter = self.peak_meter.load(std::sync::atomic::Ordering::Relaxed);
+                let new_peak_meter = if amplitude > current_peak_meter {
+                    amplitude
+                } else {
+                    current_peak_meter * self.peak_meter_decay_weight
+                        + amplitude * (1.0 - self.peak_meter_decay_weight)
+                };
+
+                self.peak_meter
+                    .store(new_peak_meter, std::sync::atomic::Ordering::Relaxed)
             }
         }
 
