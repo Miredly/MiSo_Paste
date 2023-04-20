@@ -1,8 +1,11 @@
 mod eq;
 pub use crate::eq::EQSTATE;
+mod im;
+pub use crate::im::UI_Images;
 mod tapeloop;
 pub use crate::tapeloop::TAPESTATE;
 use nih_plug::prelude::*;
+use nih_plug_egui::egui::{ColorImage, TextureHandle};
 use nih_plug_egui::{create_egui_editor, egui, widgets, EguiState};
 use std::sync::Arc;
 
@@ -16,6 +19,7 @@ struct MisoFirst {
     //GUI stuff
     peak_meter_decay_weight: f32,
     peak_meter: Arc<AtomicF32>,
+    images: UI_Images,
 }
 
 impl Default for MisoFirst {
@@ -27,6 +31,7 @@ impl Default for MisoFirst {
             //GUI
             peak_meter_decay_weight: 1.0,
             peak_meter: Arc::new(AtomicF32::new(util::MINUS_INFINITY_DB)),
+            images: UI_Images::default(),
         }
     }
 }
@@ -179,6 +184,7 @@ impl Plugin for MisoFirst {
     fn editor(&self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
         let params = self.params.clone();
         let peak_meter = self.peak_meter.clone();
+        let images = self.images.clone();
         create_egui_editor(
             self.params.editor_state.clone(),
             (),
@@ -265,6 +271,14 @@ impl Plugin for MisoFirst {
                         egui::widgets::ProgressBar::new(peak_meter_normalized)
                             .text(peak_meter_text),
                     );
+
+                    let texture = ui.ctx().load_texture(
+                        "background",
+                        images.background.to_owned(),
+                        egui::TextureFilter::Linear,
+                    );
+
+                    ui.image(&texture, texture.size_vec2());
                 });
             },
         )
