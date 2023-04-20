@@ -58,7 +58,12 @@ impl TAPESTATE {
     }
 
     pub fn clear(&mut self) {
-        self.buffer.fill(0.0);
+        //TODO - come up with a more elegant solution to make sure this only happens once per click
+        if self.buffer[0] != 0.0 {
+            self.buffer.fill(0.0);
+        } else {
+            self.buffer[0] += 0.1; //quick & dirty way to make sure the panic button will always at least work on the second click
+        }
     }
 
     fn end_of_loop(&mut self) -> usize {

@@ -191,28 +191,60 @@ impl Plugin for MisoFirst {
                     ui.label("Gain");
                     ui.add(widgets::ParamSlider::for_param(&params.gain, setter));
 
-                    ui.label(
-                        "Also gain, but with a lame widget. Can't even render the value correctly!",
-                    );
-                    // This is a simple naieve version of a parameter slider that's not aware of how
-                    // the parameters work
-                    ui.add(
-                        egui::widgets::Slider::from_get_set(-30.0..=30.0, |new_value| {
-                            match new_value {
-                                Some(new_value_db) => {
-                                    let new_value = util::gain_to_db(new_value_db as f32);
+                    ui.horizontal(|ui| {
+                        // This is a simple naieve version of a parameter slider that's not aware of how
+                        // the parameters work
+                        ui.vertical(|ui| {
+                            ui.label("gain");
+                            ui.add(
+                                egui::widgets::Slider::from_get_set(0.0..=1.0, |new_value| {
+                                    match new_value {
+                                        Some(value) => {
+                                            let new_value = value as f32;
 
-                                    setter.begin_set_parameter(&params.gain);
-                                    setter.set_parameter(&params.gain, new_value);
-                                    setter.end_set_parameter(&params.gain);
+                                            setter.begin_set_parameter(&params.gain);
+                                            setter.set_parameter(&params.gain, new_value);
+                                            setter.end_set_parameter(&params.gain);
 
-                                    new_value_db
-                                }
-                                None => util::gain_to_db(params.gain.value()) as f64,
-                            }
-                        })
-                        .suffix(" dB"),
-                    );
+                                            value
+                                        }
+                                        None => params.gain.value() as f64,
+                                    }
+                                })
+                                .vertical(),
+                            );
+                        });
+
+                        ui.vertical(|ui| {
+                            ui.label("loop length");
+                            ui.add(
+                                egui::widgets::Slider::from_get_set(0.25..=60.0, |new_value| {
+                                    match new_value {
+                                        Some(value) => {
+                                            let new_value = value as f32;
+
+                                            setter.begin_set_parameter(&params.tape_length);
+                                            setter.set_parameter(&params.tape_length, new_value);
+                                            setter.end_set_parameter(&params.tape_length);
+
+                                            value
+                                        }
+                                        None => params.tape_length.value() as f64,
+                                    }
+                                })
+                                .vertical()
+                                .suffix(" seconds"),
+                            );
+                        });
+
+                        setter.begin_set_parameter(&params.clear);
+                        if ui.button("panic").clicked() {
+                            setter.set_parameter(&params.clear, true);
+                        } else {
+                            setter.set_parameter(&params.clear, false);
+                        }
+                        setter.end_set_parameter(&params.clear);
+                    });
 
                     // TODO: Add a proper custom widget instead of reusing a progress bar
                     // let peak_meter =
@@ -272,7 +304,7 @@ impl Plugin for MisoFirst {
             self.tape
                 .set_tape_speed(self.params.tape_speed.smoothed.next());
 
-            if (self.params.clear.value()) {
+            if self.params.clear.value() {
                 self.tape.clear();
             }
 
