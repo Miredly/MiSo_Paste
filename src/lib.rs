@@ -1,12 +1,15 @@
 mod eq;
 pub use crate::eq::EQSTATE;
 mod im;
-pub use crate::im::UI_Images;
+pub use crate::im::UiImages;
 mod tapeloop;
 pub use crate::tapeloop::TAPESTATE;
 use nih_plug::prelude::*;
-use nih_plug_egui::egui::{ColorImage, TextureHandle};
-use nih_plug_egui::{create_egui_editor, egui, widgets, EguiState};
+use nih_plug_egui::{
+    create_egui_editor,
+    egui::{self, Color32, Id, LayerId, Order, Rounding},
+    widgets, EguiState,
+};
 use std::sync::Arc;
 
 /// The time it takes for the peak meter to decay by 12 dB after switching to complete silence.
@@ -19,7 +22,7 @@ struct MisoFirst {
     //GUI stuff
     peak_meter_decay_weight: f32,
     peak_meter: Arc<AtomicF32>,
-    images: UI_Images,
+    images: UiImages,
 }
 
 impl Default for MisoFirst {
@@ -31,7 +34,7 @@ impl Default for MisoFirst {
             //GUI
             peak_meter_decay_weight: 1.0,
             peak_meter: Arc::new(AtomicF32::new(util::MINUS_INFINITY_DB)),
-            images: UI_Images::default(),
+            images: UiImages::default(),
         }
     }
 }
@@ -182,9 +185,14 @@ impl Plugin for MisoFirst {
     }
 
     fn editor(&self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
+        fn rect_from_point(x: f32, y: f32) -> egui::Rect {
+            egui::Rect::from_two_pos(egui::pos2(x, y), egui::pos2(x + 1.0, y + 1.0))
+        }
+
         let params = self.params.clone();
         let peak_meter = self.peak_meter.clone();
         let images = self.images.clone();
+
         create_egui_editor(
             self.params.editor_state.clone(),
             (),
@@ -193,14 +201,24 @@ impl Plugin for MisoFirst {
                 egui::CentralPanel::default().show(egui_ctx, |ui| {
                     // NOTE: See `plugins/diopser/src/editor.rs` for an example using the generic UI widget
 
-                    // This is a fancy widget that can get all the information it needs to properly
-                    // display and modify the parameter from the parametr itself
-                    // It's not yet fully implemented, as the text is missing.
-                    // ui.label("Some random integer");
-                    // ui.add(widgets::ParamSlider::for_param(&params.some_int, setter));
+                    //IMAGES
+                    let background_texture = ui.ctx().load_texture(
+                        "background",
+                        images.background.to_owned(),
+                        egui::TextureFilter::Linear,
+                    );
+
+                    let background_image =
+                        egui::Image::new(&background_texture, egui::vec2(512.0, 512.0));
+
+                    ui.put(
+                        egui::Rect::from_points(&[egui::pos2(0.0, 0.0), egui::pos2(512.0, 512.0)]),
+                        background_image,
+                    );
 
                     ui.label("Gain");
-                    ui.add(widgets::ParamSlider::for_param(&params.gain, setter));
+                    let fancy_slider = widgets::ParamSlider::for_param(&params.gain, setter);
+                    ui.put(rect_from_point(10.0, 10.0), fancy_slider);
 
                     ui.horizontal(|ui| {
                         // This is a simple naieve version of a parameter slider that's not aware of how
@@ -247,6 +265,8 @@ impl Plugin for MisoFirst {
                             );
                         });
 
+                        //BUTTONS
+                        //panic button
                         setter.begin_set_parameter(&params.clear);
                         if ui.button("panic").clicked() {
                             setter.set_parameter(&params.clear, true);
@@ -256,6 +276,7 @@ impl Plugin for MisoFirst {
                         setter.end_set_parameter(&params.clear);
                     });
 
+                    //PEAK METER
                     // TODO: Add a proper custom widget instead of reusing a progress bar
                     let peak_meter =
                         util::gain_to_db(peak_meter.load(std::sync::atomic::Ordering::Relaxed));
@@ -267,18 +288,17 @@ impl Plugin for MisoFirst {
 
                     let peak_meter_normalized = (peak_meter + 60.0) / 60.0;
                     ui.allocate_space(egui::Vec2::splat(2.0));
-                    ui.add(
-                        egui::widgets::ProgressBar::new(peak_meter_normalized)
-                            .text(peak_meter_text),
-                    );
 
-                    let texture = ui.ctx().load_texture(
-                        "background",
-                        images.background.to_owned(),
-                        egui::TextureFilter::Linear,
-                    );
+                    let peak_meter_widget = egui::widgets::ProgressBar::new(peak_meter_normalized)
+                        .text(peak_meter_text);
 
-                    ui.image(&texture, texture.size_vec2());
+                    ui.put(
+                        egui::Rect {
+                            min: egui::pos2(10.0, 460.0),
+                            max: egui::pos2(500.0, 480.0),
+                        },
+                        peak_meter_widget,
+                    );
                 });
             },
         )
