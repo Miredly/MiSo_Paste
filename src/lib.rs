@@ -15,6 +15,11 @@ use std::sync::Arc;
 /// The time it takes for the peak meter to decay by 12 dB after switching to complete silence.
 const PEAK_METER_DECAY_MS: f64 = 150.0;
 
+const SLIDER_Y_POS: f32 = 45.0;
+const SLIDER_HORIZONTAL_SPACING: f32 = 45.0;
+const BUTTON_WIDTH: f32 = 50.0;
+const BUTTON_HEIGHT: f32 = 25.0;
+
 struct MisoFirst {
     params: Arc<MisoFirstParams>,
     es: EQSTATE,
@@ -188,6 +193,12 @@ impl Plugin for MisoFirst {
         fn rect_from_point(x: f32, y: f32) -> egui::Rect {
             egui::Rect::from_two_pos(egui::pos2(x, y), egui::pos2(x + 1.0, y + 1.0))
         }
+        fn button_rect(xpos: f32, ypos: f32) -> egui::Rect {
+            egui::Rect::from_center_size(
+                egui::pos2(xpos, ypos),
+                egui::vec2(BUTTON_WIDTH, BUTTON_HEIGHT),
+            )
+        }
 
         let params = self.params.clone();
         let peak_meter = self.peak_meter.clone();
@@ -200,7 +211,7 @@ impl Plugin for MisoFirst {
             move |egui_ctx, setter, _state| {
                 egui::CentralPanel::default().show(egui_ctx, |ui| {
                     // NOTE: See `plugins/diopser/src/editor.rs` for an example using the generic UI widget
-
+                    ui.spacing_mut().slider_width = 300.0;
                     //IMAGES
                     let background_texture = ui.ctx().load_texture(
                         "background",
@@ -210,65 +221,62 @@ impl Plugin for MisoFirst {
 
                     let background_image =
                         egui::Image::new(&background_texture, egui::vec2(512.0, 512.0));
-
                     ui.put(
                         egui::Rect::from_points(&[egui::pos2(0.0, 0.0), egui::pos2(512.0, 512.0)]),
                         background_image,
                     );
 
-                    ui.label("Gain");
-                    let fancy_slider = widgets::ParamSlider::for_param(&params.gain, setter);
-                    ui.put(rect_from_point(10.0, 10.0), fancy_slider);
+                    // ui.label("Gain");
+                    // let fancy_slider = widgets::ParamSlider::for_param(&params.gain, setter);
+                    // ui.put(rect_from_point(10.0, 10.0), fancy_slider);
+
+                    let gain_slider =
+                        egui::widgets::Slider::from_get_set(
+                            0.0..=1.0,
+                            |new_value| match new_value {
+                                Some(value) => {
+                                    let new_value = value as f32;
+
+                                    setter.begin_set_parameter(&params.gain);
+                                    setter.set_parameter(&params.gain, new_value);
+                                    setter.end_set_parameter(&params.gain);
+
+                                    value
+                                }
+                                None => params.gain.value() as f64,
+                            },
+                        )
+                        .vertical();
+                    ui.put(rect_from_point(10.0, SLIDER_Y_POS), gain_slider);
+
+                    let tape_length_slider = egui::widgets::Slider::from_get_set(
+                        0.25..=60.0,
+                        |new_value| match new_value {
+                            Some(value) => {
+                                let new_value = value as f32;
+
+                                setter.begin_set_parameter(&params.tape_length);
+                                setter.set_parameter(&params.tape_length, new_value);
+                                setter.end_set_parameter(&params.tape_length);
+
+                                value
+                            }
+                            None => params.tape_length.value() as f64,
+                        },
+                    )
+                    .vertical();
+
+                    ui.put(
+                        rect_from_point(10.0 + SLIDER_HORIZONTAL_SPACING, SLIDER_Y_POS),
+                        tape_length_slider,
+                    );
 
                     ui.horizontal(|ui| {
-                        // This is a simple naieve version of a parameter slider that's not aware of how
-                        // the parameters work
-                        ui.vertical(|ui| {
-                            ui.label("gain");
-                            ui.add(
-                                egui::widgets::Slider::from_get_set(0.0..=1.0, |new_value| {
-                                    match new_value {
-                                        Some(value) => {
-                                            let new_value = value as f32;
-
-                                            setter.begin_set_parameter(&params.gain);
-                                            setter.set_parameter(&params.gain, new_value);
-                                            setter.end_set_parameter(&params.gain);
-
-                                            value
-                                        }
-                                        None => params.gain.value() as f64,
-                                    }
-                                })
-                                .vertical(),
-                            );
-                        });
-
-                        ui.vertical(|ui| {
-                            ui.label("loop length");
-                            ui.add(
-                                egui::widgets::Slider::from_get_set(0.25..=60.0, |new_value| {
-                                    match new_value {
-                                        Some(value) => {
-                                            let new_value = value as f32;
-
-                                            setter.begin_set_parameter(&params.tape_length);
-                                            setter.set_parameter(&params.tape_length, new_value);
-                                            setter.end_set_parameter(&params.tape_length);
-
-                                            value
-                                        }
-                                        None => params.tape_length.value() as f64,
-                                    }
-                                })
-                                .vertical(),
-                            );
-                        });
-
                         //BUTTONS
                         //panic button
+                        let panic_button = egui::Button::new("Panic");
                         setter.begin_set_parameter(&params.clear);
-                        if ui.button("panic").clicked() {
+                        if ui.put(button_rect(475.0, 350.0), panic_button).clicked() {
                             setter.set_parameter(&params.clear, true);
                         } else {
                             setter.set_parameter(&params.clear, false);
