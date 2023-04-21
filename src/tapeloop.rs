@@ -3,6 +3,7 @@ use nih_plug::nih_dbg;
 const MAX_TAPE_LENGTH: f32 = 60.0;
 const MAX_TAPE_SPEED: f32 = 3.0;
 
+#[derive(Clone)]
 pub struct TAPESTATE {
     samplerate: f32,
     length: f32,
@@ -65,6 +66,10 @@ impl TAPESTATE {
         } else {
             self.buffer[0] += 0.1; //quick & dirty way to make sure the panic button will always at least work on the second click
         }
+    }
+
+    pub fn current_position_percent(&mut self) -> f32 {
+        self.current_sample_idx as f32 / self.end_of_loop() as f32
     }
 
     fn end_of_loop(&mut self) -> usize {

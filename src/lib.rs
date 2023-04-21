@@ -27,6 +27,7 @@ struct MisoFirst {
     //GUI stuff
     peak_meter_decay_weight: f32,
     peak_meter: Arc<AtomicF32>,
+    tape_pos: Arc<AtomicF32>,
     images: UiImages,
 }
 
@@ -39,6 +40,7 @@ impl Default for MisoFirst {
             //GUI
             peak_meter_decay_weight: 1.0,
             peak_meter: Arc::new(AtomicF32::new(util::MINUS_INFINITY_DB)),
+            tape_pos: Arc::new(AtomicF32::new(0.0)),
             images: UiImages::default(),
         }
     }
@@ -203,6 +205,7 @@ impl Plugin for MisoFirst {
         let params = self.params.clone();
         let peak_meter = self.peak_meter.clone();
         let images = self.images.clone();
+        let tape_pos = self.tape_pos.clone();
 
         create_egui_editor(
             self.params.editor_state.clone(),
@@ -226,10 +229,36 @@ impl Plugin for MisoFirst {
                         background_image,
                     );
 
-                    // ui.label("Gain");
-                    // let fancy_slider = widgets::ParamSlider::for_param(&params.gain, setter);
-                    // ui.put(rect_from_point(10.0, 10.0), fancy_slider);
+                    let reel_texture = ui.ctx().load_texture(
+                        "reel",
+                        images.reel.to_owned(),
+                        egui::TextureFilter::Linear,
+                    );
 
+                    let reel_image = egui::Image::new(&reel_texture, egui::vec2(128.0, 128.0))
+                        .rotate(
+                            tape_pos.load(std::sync::atomic::Ordering::Relaxed)
+                                * 360.0_f32.to_radians(),
+                            egui::vec2(0.5, 0.5),
+                        );
+                    ui.put(
+                        egui::Rect::from_center_size(
+                            egui::pos2(256.0, 256.0),
+                            egui::vec2(128.0, 128.0),
+                        ),
+                        reel_image,
+                    );
+
+                    ui.put(
+                        egui::Rect::from_center_size(
+                            egui::pos2(400.0, 256.0),
+                            egui::vec2(128.0, 128.0),
+                        ),
+                        reel_image,
+                    );
+
+                    //SLIDERS
+                    //gain
                     let gain_slider =
                         egui::widgets::Slider::from_get_set(
                             0.0..=1.0,
@@ -249,6 +278,7 @@ impl Plugin for MisoFirst {
                         .vertical();
                     ui.put(rect_from_point(10.0, SLIDER_Y_POS), gain_slider);
 
+                    //tape length
                     let tape_length_slider = egui::widgets::Slider::from_get_set(
                         0.25..=60.0,
                         |new_value| match new_value {
@@ -271,18 +301,16 @@ impl Plugin for MisoFirst {
                         tape_length_slider,
                     );
 
-                    ui.horizontal(|ui| {
-                        //BUTTONS
-                        //panic button
-                        let panic_button = egui::Button::new("Panic");
-                        setter.begin_set_parameter(&params.clear);
-                        if ui.put(button_rect(475.0, 350.0), panic_button).clicked() {
-                            setter.set_parameter(&params.clear, true);
-                        } else {
-                            setter.set_parameter(&params.clear, false);
-                        }
-                        setter.end_set_parameter(&params.clear);
-                    });
+                    //BUTTONS
+                    //panic button
+                    let panic_button = egui::Button::new("Panic");
+                    setter.begin_set_parameter(&params.clear);
+                    if ui.put(button_rect(475.0, 350.0), panic_button).clicked() {
+                        setter.set_parameter(&params.clear, true);
+                    } else {
+                        setter.set_parameter(&params.clear, false);
+                    }
+                    setter.end_set_parameter(&params.clear);
 
                     //PEAK METER
                     // TODO: Add a proper custom widget instead of reusing a progress bar
@@ -390,7 +418,12 @@ impl Plugin for MisoFirst {
                 };
 
                 self.peak_meter
-                    .store(new_peak_meter, std::sync::atomic::Ordering::Relaxed)
+                    .store(new_peak_meter, std::sync::atomic::Ordering::Relaxed);
+
+                self.tape_pos.store(
+                    self.tape.current_position_percent(),
+                    std::sync::atomic::Ordering::Relaxed,
+                );
             }
         }
 
