@@ -66,8 +66,8 @@ struct MisoFirstParams {
     pub tape_length: FloatParam,
     #[id = "clear"]
     pub clear: BoolParam,
-    #[id = "erase"]
-    pub erase: BoolParam,
+    #[id = "reverse"]
+    pub reverse: BoolParam,
 
     #[persist = "editor-state"]
     editor_state: Arc<EguiState>,
@@ -143,7 +143,7 @@ impl Default for MisoFirstParams {
 
             clear: BoolParam::new("clear", false),
 
-            erase: BoolParam::new("erase", false),
+            reverse: BoolParam::new("reverse", false),
 
             editor_state: EguiState::from_size(512, 512),
         }
@@ -215,7 +215,9 @@ impl Plugin for MisoFirst {
                 egui::CentralPanel::default().show(egui_ctx, |ui| {
                     // NOTE: See `plugins/diopser/src/editor.rs` for an example using the generic UI widget
                     ui.spacing_mut().slider_width = 300.0;
+
                     //IMAGES
+                    //background
                     let background_texture = ui.ctx().load_texture(
                         "background",
                         images.background.to_owned(),
@@ -224,11 +226,13 @@ impl Plugin for MisoFirst {
 
                     let background_image =
                         egui::Image::new(&background_texture, egui::vec2(512.0, 512.0));
+
                     ui.put(
                         egui::Rect::from_points(&[egui::pos2(0.0, 0.0), egui::pos2(512.0, 512.0)]),
                         background_image,
                     );
 
+                    //reel to reel
                     let reel_texture = ui.ctx().load_texture(
                         "reel",
                         images.reel.to_owned(),
@@ -241,6 +245,8 @@ impl Plugin for MisoFirst {
                                 * 360.0_f32.to_radians(),
                             egui::vec2(0.5, 0.5),
                         );
+                    //TODO - build in offsets so we can move the two reels around more easily
+
                     ui.put(
                         egui::Rect::from_center_size(
                             egui::pos2(256.0, 256.0),
@@ -248,7 +254,6 @@ impl Plugin for MisoFirst {
                         ),
                         reel_image,
                     );
-
                     ui.put(
                         egui::Rect::from_center_size(
                             egui::pos2(400.0, 256.0),
@@ -303,14 +308,32 @@ impl Plugin for MisoFirst {
 
                     //BUTTONS
                     //panic button
-                    let panic_button = egui::Button::new("Panic");
+                    let panic_button = egui::Button::new("CLR");
+
                     setter.begin_set_parameter(&params.clear);
+
                     if ui.put(button_rect(475.0, 350.0), panic_button).clicked() {
                         setter.set_parameter(&params.clear, true);
                     } else {
                         setter.set_parameter(&params.clear, false);
                     }
+
                     setter.end_set_parameter(&params.clear);
+
+                    //reverse button
+                    let reverse_button =
+                        egui::Button::new("REV").sense(egui::Sense::click_and_drag());
+
+                    setter.begin_set_parameter(&params.reverse);
+
+                    if ui.put(button_rect(420.0, 350.0), reverse_button).dragged() {
+                        nih_dbg!("pressed!");
+                        setter.set_parameter(&params.reverse, true);
+                    } else {
+                        setter.set_parameter(&params.reverse, false);
+                    }
+
+                    setter.end_set_parameter(&params.reverse);
 
                     //PEAK METER
                     // TODO: Add a proper custom widget instead of reusing a progress bar
@@ -372,8 +395,11 @@ impl Plugin for MisoFirst {
         _context: &mut impl ProcessContext<Self>,
     ) -> ProcessStatus {
         if self.params.clear.value() {
-            nih_dbg!("clear");
             self.tape.clear();
+        }
+
+        if self.params.reverse.value() {
+            nih_dbg!(self.params.reverse.value());
         }
 
         for channel_samples in buffer.iter_samples() {
@@ -397,12 +423,15 @@ impl Plugin for MisoFirst {
                 //EQ
                 self.es.process_3band(sample);
                 //TAPE
-                self.tape.inc_sample_idx();
-                if (self.params.erase.value()) {
-                    self.tape.to_buffer(&mut 0.0, Some(gain));
+                //move forward if reverse button not pressed
+                if self.params.reverse.value() == true {
+                    self.tape.dec_sample_idx();
                 } else {
-                    self.tape.to_buffer(sample, Some(gain));
+                    self.tape.inc_sample_idx();
                 }
+
+                self.tape.to_buffer(sample, Some(gain));
+
                 *sample += self.tape.from_buffer();
                 amplitude += *sample;
             }

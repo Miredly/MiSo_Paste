@@ -32,10 +32,18 @@ impl TAPESTATE {
     }
 
     pub fn inc_sample_idx(&mut self) {
-        if (self.current_sample_idx >= self.end_of_loop()) {
+        if self.current_sample_idx >= self.end_of_loop() {
             self.current_sample_idx = 0;
         } else {
             self.current_sample_idx += 1;
+        }
+    }
+
+    pub fn dec_sample_idx(&mut self) {
+        if self.current_sample_idx == 0 {
+            self.current_sample_idx = self.end_of_loop();
+        } else {
+            self.current_sample_idx -= 1;
         }
     }
 
