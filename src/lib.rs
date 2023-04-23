@@ -15,7 +15,7 @@ use std::sync::Arc;
 /// The time it takes for the peak meter to decay by 12 dB after switching to complete silence.
 const PEAK_METER_DECAY_MS: f64 = 150.0;
 
-const SLIDER_Y_POS: f32 = 45.0;
+const SLIDER_Y_POS: f32 = 60.0;
 const SLIDER_HORIZONTAL_SPACING: f32 = 45.0;
 const BUTTON_WIDTH: f32 = 50.0;
 const BUTTON_HEIGHT: f32 = 25.0;
@@ -145,7 +145,7 @@ impl Default for MisoFirstParams {
 
             reverse: BoolParam::new("reverse", false),
 
-            editor_state: EguiState::from_size(512, 512),
+            editor_state: EguiState::from_size(512, 256),
         }
     }
 }
@@ -207,6 +207,7 @@ impl Plugin for MisoFirst {
         let images = self.images.clone();
         let tape_pos = self.tape_pos.clone();
 
+        //NOTE - Window size defined in the default: editor_state
         create_egui_editor(
             self.params.editor_state.clone(),
             (),
@@ -214,7 +215,7 @@ impl Plugin for MisoFirst {
             move |egui_ctx, setter, _state| {
                 egui::CentralPanel::default().show(egui_ctx, |ui| {
                     // NOTE: See `plugins/diopser/src/editor.rs` for an example using the generic UI widget
-                    ui.spacing_mut().slider_width = 300.0;
+                    ui.spacing_mut().slider_width = 130.0;
 
                     //IMAGES
                     //background
@@ -225,21 +226,34 @@ impl Plugin for MisoFirst {
                     );
 
                     let background_image =
-                        egui::Image::new(&background_texture, egui::vec2(512.0, 512.0));
+                        egui::Image::new(&background_texture, egui::vec2(512.0, 256.0));
 
                     ui.put(
-                        egui::Rect::from_points(&[egui::pos2(0.0, 0.0), egui::pos2(512.0, 512.0)]),
+                        egui::Rect::from_points(&[egui::pos2(0.0, 0.0), egui::pos2(512.0, 256.0)]),
                         background_image,
                     );
 
                     //reel to reel
-                    let reel_texture = ui.ctx().load_texture(
-                        "reel",
-                        images.reel.to_owned(),
+                    let reel_l_texture = ui.ctx().load_texture(
+                        "reel_l",
+                        images.reel_l.to_owned(),
                         egui::TextureFilter::Linear,
                     );
 
-                    let reel_image = egui::Image::new(&reel_texture, egui::vec2(128.0, 128.0))
+                    let reel_l_image = egui::Image::new(&reel_l_texture, egui::vec2(128.0, 128.0))
+                        .rotate(
+                            tape_pos.load(std::sync::atomic::Ordering::Relaxed)
+                                * 360.0_f32.to_radians(),
+                            egui::vec2(0.5, 0.5),
+                        );
+
+                    let reel_r_texture = ui.ctx().load_texture(
+                        "reel_r",
+                        images.reel_r.to_owned(),
+                        egui::TextureFilter::Linear,
+                    );
+
+                    let reel_r_image = egui::Image::new(&reel_r_texture, egui::vec2(128.0, 128.0))
                         .rotate(
                             tape_pos.load(std::sync::atomic::Ordering::Relaxed)
                                 * 360.0_f32.to_radians(),
@@ -249,17 +263,17 @@ impl Plugin for MisoFirst {
 
                     ui.put(
                         egui::Rect::from_center_size(
-                            egui::pos2(256.0, 256.0),
+                            egui::pos2(264.0, 98.0),
                             egui::vec2(128.0, 128.0),
                         ),
-                        reel_image,
+                        reel_l_image,
                     );
                     ui.put(
                         egui::Rect::from_center_size(
-                            egui::pos2(400.0, 256.0),
+                            egui::pos2(422.0, 98.0),
                             egui::vec2(128.0, 128.0),
                         ),
-                        reel_image,
+                        reel_r_image,
                     );
 
                     //SLIDERS
@@ -312,7 +326,7 @@ impl Plugin for MisoFirst {
 
                     setter.begin_set_parameter(&params.clear);
 
-                    if ui.put(button_rect(475.0, 350.0), panic_button).clicked() {
+                    if ui.put(button_rect(445.0, 205.0), panic_button).clicked() {
                         setter.set_parameter(&params.clear, true);
                     } else {
                         setter.set_parameter(&params.clear, false);
@@ -326,7 +340,7 @@ impl Plugin for MisoFirst {
 
                     setter.begin_set_parameter(&params.reverse);
 
-                    if ui.put(button_rect(420.0, 350.0), reverse_button).dragged() {
+                    if ui.put(button_rect(375.0, 205.0), reverse_button).dragged() {
                         nih_dbg!("pressed!");
                         setter.set_parameter(&params.reverse, true);
                     } else {
@@ -353,10 +367,21 @@ impl Plugin for MisoFirst {
 
                     ui.put(
                         egui::Rect {
-                            min: egui::pos2(10.0, 460.0),
-                            max: egui::pos2(500.0, 480.0),
+                            min: egui::pos2(10.0, 230.0),
+                            max: egui::pos2(500.0, 250.0),
                         },
                         peak_meter_widget,
+                    );
+
+                    let dbg_label =
+                        egui::Label::new(std::env::current_dir().unwrap().to_str().unwrap());
+
+                    ui.put(
+                        egui::Rect {
+                            min: egui::pos2(10.0, 10.0),
+                            max: egui::pos2(512.0, 50.0),
+                        },
+                        dbg_label,
                     );
                 });
             },
@@ -380,6 +405,7 @@ impl Plugin for MisoFirst {
             .powf((buffer_config.sample_rate as f64 * PEAK_METER_DECAY_MS / 1000.0).recip())
             as f32;
 
+        nih_dbg!(std::env::current_dir().unwrap());
         true
     }
 
@@ -421,9 +447,9 @@ impl Plugin for MisoFirst {
             //processing
             for sample in channel_samples {
                 //EQ
-                self.es.process_3band(sample);
-                //TAPE
-                //move forward if reverse button not pressed
+                self.es.process_3band(sample); //TODO - Loop degredation here
+                                               //TAPE
+                                               //move forward if reverse button not pressed
                 if self.params.reverse.value() == true {
                     self.tape.dec_sample_idx();
                 } else {
@@ -432,6 +458,7 @@ impl Plugin for MisoFirst {
 
                 self.tape.to_buffer(sample, Some(gain));
 
+                //TODO - input monitor on/off
                 *sample += self.tape.from_buffer();
                 amplitude += *sample;
             }

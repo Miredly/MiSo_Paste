@@ -81,7 +81,6 @@ impl TAPESTATE {
     }
 
     fn end_of_loop(&mut self) -> usize {
-        //CURSED I KNOW
         return f32::clamp(
             self.length * self.samplerate,
             self.samplerate,
