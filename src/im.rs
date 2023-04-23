@@ -4,6 +4,10 @@ use egui_extras::image::RetainedImage;
 use nih_plug::nih_dbg;
 use nih_plug_egui::egui::ColorImage;
 
+const BG_IMAGE: &[u8] = include_bytes!("../Resources/background.png");
+const REEL_R_IMAGE: &[u8] = include_bytes!("../Resources/reel_r.png");
+const REEL_L_IMAGE: &[u8] = include_bytes!("../Resources/reel_l.png");
+
 #[derive(Clone)]
 pub struct UiImages {
     pub background: ColorImage,
@@ -15,9 +19,9 @@ impl Default for UiImages {
     fn default() -> Self {
         Self {
             //ARE PATHS RELATIVE TO THE BINARY AND NOT THE SOURCE??
-            background: load_image_from_path("/Users/Miredly/Resources/background.png").unwrap(),
-            reel_r: load_image_from_path("/Users/Miredly/Resources/reel_r.png").unwrap(),
-            reel_l: load_image_from_path("/Users/Miredly/Resources/reel_l.png").unwrap(),
+            background: load_image_from_memory(BG_IMAGE).unwrap(),
+            reel_r: load_image_from_memory(REEL_R_IMAGE).unwrap(),
+            reel_l: load_image_from_memory(REEL_L_IMAGE).unwrap(),
         }
     }
 }
@@ -27,6 +31,14 @@ pub fn load_image_from_path(path: &str) -> Result<ColorImage, image::ImageError>
     nih_dbg!(std::env::current_exe().unwrap());
     let image = image::io::Reader::open(get_path(path))?.decode()?;
     nih_dbg!("at least the path is good");
+    let size = [image.width() as _, image.height() as _];
+    let image_buffer = image.to_rgba8();
+    let pixels = image_buffer.as_flat_samples();
+    Ok(ColorImage::from_rgba_unmultiplied(size, pixels.as_slice()))
+}
+
+pub fn load_image_from_memory(img: &[u8]) -> Result<ColorImage, image::ImageError> {
+    let image = image::load_from_memory(img).expect("couldn't load");
     let size = [image.width() as _, image.height() as _];
     let image_buffer = image.to_rgba8();
     let pixels = image_buffer.as_flat_samples();
