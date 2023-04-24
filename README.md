@@ -2,8 +2,8 @@
 
 ## Building
 
-After installing [Rust](https://rustup.rs/), you can compile Miso First as follows:
+After installing [Rust](https://rustup.rs/), you can compile Miso Paste as follows:
 
 ```shell
-cargo xtask bundle miso_first --release
+cargo xtask bundle miso_paste --release
 ```
