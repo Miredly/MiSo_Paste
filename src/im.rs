@@ -18,7 +18,6 @@ pub struct UiImages {
 impl Default for UiImages {
     fn default() -> Self {
         Self {
-            //ARE PATHS RELATIVE TO THE BINARY AND NOT THE SOURCE??
             background: load_image_from_memory(BG_IMAGE).unwrap(),
             reel_r: load_image_from_memory(REEL_R_IMAGE).unwrap(),
             reel_l: load_image_from_memory(REEL_L_IMAGE).unwrap(),

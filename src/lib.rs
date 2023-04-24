@@ -20,8 +20,8 @@ const SLIDER_HORIZONTAL_SPACING: f32 = 45.0;
 const BUTTON_WIDTH: f32 = 50.0;
 const BUTTON_HEIGHT: f32 = 25.0;
 
-struct MisoFirst {
-    params: Arc<MisoFirstParams>,
+struct MisoPaste {
+    params: Arc<MisoPasteParams>,
     es: EQSTATE,
     tape: TAPESTATE,
     //GUI stuff
@@ -31,10 +31,10 @@ struct MisoFirst {
     images: UiImages,
 }
 
-impl Default for MisoFirst {
+impl Default for MisoPaste {
     fn default() -> Self {
         Self {
-            params: Arc::new(MisoFirstParams::default()),
+            params: Arc::new(MisoPasteParams::default()),
             es: EQSTATE::default(),
             tape: TAPESTATE::default(),
             //GUI
@@ -47,7 +47,7 @@ impl Default for MisoFirst {
 }
 
 #[derive(Params)]
-struct MisoFirstParams {
+struct MisoPasteParams {
     /// The parameter's ID is used to identify the parameter in the wrappred plugin API. As long as
     /// these IDs remain constant, you can rename and reorder these fields as you wish. The
     /// parameters are exposed to the host in the same order they were defined. In this case, this
@@ -73,7 +73,7 @@ struct MisoFirstParams {
     editor_state: Arc<EguiState>,
 }
 
-impl Default for MisoFirstParams {
+impl Default for MisoPasteParams {
     fn default() -> Self {
         Self {
             // This gain is stored as linear gain. NIH-plug comes with useful conversion functions
@@ -150,8 +150,8 @@ impl Default for MisoFirstParams {
     }
 }
 
-impl Plugin for MisoFirst {
-    const NAME: &'static str = "Miso First";
+impl Plugin for MisoPaste {
+    const NAME: &'static str = "Miso Paste";
     const VENDOR: &'static str = "Miredly";
     const URL: &'static str = env!("CARGO_PKG_HOMEPAGE");
     const EMAIL: &'static str = "miles@mired.space";
@@ -487,8 +487,8 @@ impl Plugin for MisoFirst {
     }
 }
 
-impl ClapPlugin for MisoFirst {
-    const CLAP_ID: &'static str = "com.miso.miso-first";
+impl ClapPlugin for MisoPaste {
+    const CLAP_ID: &'static str = "com.miso.miso-paste";
     const CLAP_DESCRIPTION: Option<&'static str> = Some("first stab at a pluggo, hey");
     const CLAP_MANUAL_URL: Option<&'static str> = Some(Self::URL);
     const CLAP_SUPPORT_URL: Option<&'static str> = None;
@@ -497,7 +497,7 @@ impl ClapPlugin for MisoFirst {
     const CLAP_FEATURES: &'static [ClapFeature] = &[ClapFeature::AudioEffect, ClapFeature::Stereo];
 }
 
-impl Vst3Plugin for MisoFirst {
+impl Vst3Plugin for MisoPaste {
     const VST3_CLASS_ID: [u8; 16] = *b"Exactly16Chars!!";
 
     // And also don't forget to change these categories
@@ -505,5 +505,5 @@ impl Vst3Plugin for MisoFirst {
         &[Vst3SubCategory::Fx, Vst3SubCategory::Dynamics];
 }
 
-nih_export_clap!(MisoFirst);
-nih_export_vst3!(MisoFirst);
+nih_export_clap!(MisoPaste);
+nih_export_vst3!(MisoPaste);

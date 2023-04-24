@@ -878,7 +878,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "miso_first"
+name = "miso_paste"
 version = "0.1.0"
 dependencies = [
  "atomic_float",

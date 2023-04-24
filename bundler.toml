@@ -4,5 +4,5 @@
 # [package_name]
 # name = "Human Readable Plugin Name"  # defaults to <package_name>
 
-[miso_first]
-name = "Miso First"
+[miso_paste]
+name = "Miso Paste"
