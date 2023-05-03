@@ -47,6 +47,12 @@ impl TAPESTATE {
         }
     }
 
+    pub fn fast_forward(&mut self) {
+        for _ in 0..MAX_TAPE_SPEED as i32 {
+            self.inc_sample_idx();
+        }
+    }
+
     pub fn to_buffer(&mut self, sample: &mut f32, gain: Option<f32>) {
         self.buffer[self.current_sample_idx] += sample.clone() * gain.unwrap_or(1.0);
     }

@@ -68,6 +68,8 @@ struct MisoPasteParams {
     pub clear: BoolParam,
     #[id = "reverse"]
     pub reverse: BoolParam,
+    #[id = "fast forward"]
+    pub fast_forward: BoolParam,
 
     #[persist = "editor-state"]
     editor_state: Arc<EguiState>,
@@ -144,6 +146,8 @@ impl Default for MisoPasteParams {
             clear: BoolParam::new("clear", false),
 
             reverse: BoolParam::new("reverse", false),
+
+            fast_forward: BoolParam::new("fast forward", false),
 
             editor_state: EguiState::from_size(512, 256),
         }
@@ -321,7 +325,7 @@ impl Plugin for MisoPaste {
                     );
 
                     //BUTTONS
-                    //panic button
+                    //clear buffer button
                     let panic_button = egui::Button::new("CLR");
 
                     setter.begin_set_parameter(&params.clear);
@@ -334,6 +338,29 @@ impl Plugin for MisoPaste {
 
                     setter.end_set_parameter(&params.clear);
 
+                    //fast forward
+                    let ff_button = egui::Button::new("FF").sense(egui::Sense::click_and_drag());
+
+                    setter.begin_set_parameter(&params.fast_forward);
+
+                    if ui.put(button_rect(305.0, 205.0), ff_button).dragged() {
+                        setter.set_parameter(&params.fast_forward, true);
+                    } else {
+                        setter.set_parameter(&params.fast_forward, false);
+                    }
+
+                    setter.end_set_parameter(&params.fast_forward);
+
+                    //play/pause
+                    let play_pause_button = egui::Button::new("Play/Pause");
+
+                    if ui
+                        .put(button_rect(235.0, 205.0), play_pause_button)
+                        .clicked()
+                    {
+                        nih_dbg!("play / pause!");
+                    }
+
                     //reverse button
                     let reverse_button =
                         egui::Button::new("REV").sense(egui::Sense::click_and_drag());
@@ -341,7 +368,6 @@ impl Plugin for MisoPaste {
                     setter.begin_set_parameter(&params.reverse);
 
                     if ui.put(button_rect(375.0, 205.0), reverse_button).dragged() {
-                        nih_dbg!("pressed!");
                         setter.set_parameter(&params.reverse, true);
                     } else {
                         setter.set_parameter(&params.reverse, false);
@@ -448,12 +474,14 @@ impl Plugin for MisoPaste {
             for sample in channel_samples {
                 //EQ
                 self.es.process_3band(sample); //TODO - Loop degredation here
-                                               //TAPE
-                                               //move forward if reverse button not pressed
+
+                //TAPE
                 if self.params.reverse.value() == true {
                     self.tape.dec_sample_idx();
+                } else if self.params.fast_forward.value() == true {
+                    self.tape.fast_forward();
                 } else {
-                    self.tape.inc_sample_idx();
+                    self.tape.inc_sample_idx(); //play normally
                 }
 
                 self.tape.to_buffer(sample, Some(gain));
@@ -463,9 +491,11 @@ impl Plugin for MisoPaste {
                 amplitude += *sample;
             }
 
+            //crunch some stuff if the plugin window is open
             if self.params.editor_state.is_open() {
                 amplitude = (amplitude / num_samples as f32).abs();
                 let current_peak_meter = self.peak_meter.load(std::sync::atomic::Ordering::Relaxed);
+
                 let new_peak_meter = if amplitude > current_peak_meter {
                     amplitude
                 } else {
