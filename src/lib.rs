@@ -70,6 +70,8 @@ struct MisoPasteParams {
     pub reverse: BoolParam,
     #[id = "fast forward"]
     pub fast_forward: BoolParam,
+    #[id = "play / pause"]
+    pub play_pause: BoolParam,
 
     #[persist = "editor-state"]
     editor_state: Arc<EguiState>,
@@ -148,6 +150,8 @@ impl Default for MisoPasteParams {
             reverse: BoolParam::new("reverse", false),
 
             fast_forward: BoolParam::new("fast forward", false),
+
+            play_pause: BoolParam::new("play / pause", true),
 
             editor_state: EguiState::from_size(512, 256),
         }
@@ -354,12 +358,16 @@ impl Plugin for MisoPaste {
                     //play/pause
                     let play_pause_button = egui::Button::new("Play/Pause");
 
+                    setter.begin_set_parameter(&params.play_pause);
+
                     if ui
                         .put(button_rect(235.0, 205.0), play_pause_button)
                         .clicked()
                     {
-                        nih_dbg!("play / pause!");
+                        setter.set_parameter(&params.play_pause, !&params.play_pause.value());
                     }
+
+                    setter.end_set_parameter(&params.play_pause);
 
                     //reverse button
                     let reverse_button =
@@ -480,14 +488,19 @@ impl Plugin for MisoPaste {
                     self.tape.dec_sample_idx();
                 } else if self.params.fast_forward.value() == true {
                     self.tape.fast_forward();
-                } else {
+                } else if self.params.play_pause.value() == true {
                     self.tape.inc_sample_idx(); //play normally
                 }
 
-                self.tape.to_buffer(sample, Some(gain));
+                //TODO - due for a refactor? We make this check again here to avoid this read / write in every conditional
+                if self.params.reverse.value()
+                    || self.params.fast_forward.value()
+                    || self.params.play_pause.value()
+                {
+                    self.tape.to_buffer(sample, Some(gain));
+                    *sample += self.tape.from_buffer();
+                }
 
-                //TODO - input monitor on/off
-                *sample += self.tape.from_buffer();
                 amplitude += *sample;
             }
 

@@ -1,7 +1,7 @@
 use nih_plug::nih_dbg;
 
 const MAX_TAPE_LENGTH: f32 = 60.0;
-const MAX_TAPE_SPEED: f32 = 3.0;
+const MAX_TAPE_SPEED: f32 = 2.0;
 
 #[derive(Clone)]
 pub struct TAPESTATE {
