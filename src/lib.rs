@@ -5,11 +5,7 @@ pub use crate::im::UiImages;
 mod tapeloop;
 pub use crate::tapeloop::TAPESTATE;
 use nih_plug::prelude::*;
-use nih_plug_egui::{
-    create_egui_editor,
-    egui::{self, Color32, Id, LayerId, Order, Rounding},
-    widgets, EguiState,
-};
+use nih_plug_egui::{create_egui_editor, egui, EguiState};
 use std::sync::Arc;
 
 /// The time it takes for the peak meter to decay by 12 dB after switching to complete silence.
@@ -223,6 +219,7 @@ impl Plugin for MisoPaste {
             move |egui_ctx, setter, _state| {
                 egui::CentralPanel::default().show(egui_ctx, |ui| {
                     // NOTE: See `plugins/diopser/src/editor.rs` for an example using the generic UI widget
+
                     ui.spacing_mut().slider_width = 130.0;
 
                     //IMAGES
@@ -492,7 +489,8 @@ impl Plugin for MisoPaste {
                     self.tape.inc_sample_idx(); //play normally
                 }
 
-                //TODO - due for a refactor? We make this check again here to avoid this read / write in every conditional
+                //TODO - due for a refactor? we recheck all this again to make sure it plays when
+                //       we've pushed any button without copying the read writes in to each conditional
                 if self.params.reverse.value()
                     || self.params.fast_forward.value()
                     || self.params.play_pause.value()
