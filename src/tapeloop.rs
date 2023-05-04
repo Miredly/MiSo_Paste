@@ -16,7 +16,7 @@ impl Default for TAPESTATE {
     fn default() -> Self {
         Self {
             samplerate: 44100.0,
-            length: 2.0,
+            length: 6.0,
             speed: 1.0,
             buffer: vec![0.0; 44100],
             current_sample_idx: 0,

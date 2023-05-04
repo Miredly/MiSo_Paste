@@ -12,7 +12,7 @@ use std::sync::Arc;
 const PEAK_METER_DECAY_MS: f64 = 150.0;
 
 const SLIDER_Y_POS: f32 = 60.0;
-const SLIDER_HORIZONTAL_SPACING: f32 = 45.0;
+const SLIDER_HORIZONTAL_SPACING: f32 = 60.0;
 const BUTTON_WIDTH: f32 = 50.0;
 const BUTTON_HEIGHT: f32 = 25.0;
 
@@ -133,7 +133,7 @@ impl Default for MisoPasteParams {
 
             tape_length: FloatParam::new(
                 "tape length",
-                2.0,
+                6.0,
                 FloatRange::Linear {
                     min: 2.0,
                     max: 60.0,
@@ -245,7 +245,7 @@ impl Plugin for MisoPaste {
                         egui::TextureFilter::Linear,
                     );
 
-                    let reel_l_image = egui::Image::new(&reel_l_texture, egui::vec2(128.0, 128.0))
+                    let reel_l_image = egui::Image::new(&reel_l_texture, egui::vec2(172.0, 172.0))
                         .rotate(
                             tape_pos.load(std::sync::atomic::Ordering::Relaxed)
                                 * 360.0_f32.to_radians(),
@@ -258,7 +258,7 @@ impl Plugin for MisoPaste {
                         egui::TextureFilter::Linear,
                     );
 
-                    let reel_r_image = egui::Image::new(&reel_r_texture, egui::vec2(128.0, 128.0))
+                    let reel_r_image = egui::Image::new(&reel_r_texture, egui::vec2(172.0, 172.0))
                         .rotate(
                             tape_pos.load(std::sync::atomic::Ordering::Relaxed)
                                 * 360.0_f32.to_radians(),
@@ -268,15 +268,15 @@ impl Plugin for MisoPaste {
 
                     ui.put(
                         egui::Rect::from_center_size(
-                            egui::pos2(264.0, 98.0),
-                            egui::vec2(128.0, 128.0),
+                            egui::pos2(246.0, 92.0),
+                            egui::vec2(172.0, 172.0),
                         ),
                         reel_l_image,
                     );
                     ui.put(
                         egui::Rect::from_center_size(
-                            egui::pos2(422.0, 98.0),
-                            egui::vec2(128.0, 128.0),
+                            egui::pos2(420.0, 92.0),
+                            egui::vec2(172.0, 172.0),
                         ),
                         reel_r_image,
                     );
@@ -300,7 +300,7 @@ impl Plugin for MisoPaste {
                             },
                         )
                         .vertical();
-                    ui.put(rect_from_point(10.0, SLIDER_Y_POS), gain_slider);
+                    ui.put(rect_from_point(64.0, SLIDER_Y_POS), gain_slider);
 
                     //tape length
                     let tape_length_slider = egui::widgets::Slider::from_get_set(
@@ -321,7 +321,7 @@ impl Plugin for MisoPaste {
                     .vertical();
 
                     ui.put(
-                        rect_from_point(10.0 + SLIDER_HORIZONTAL_SPACING, SLIDER_Y_POS),
+                        rect_from_point(64.0 + SLIDER_HORIZONTAL_SPACING, SLIDER_Y_POS),
                         tape_length_slider,
                     );
 
@@ -331,7 +331,7 @@ impl Plugin for MisoPaste {
 
                     setter.begin_set_parameter(&params.clear);
 
-                    if ui.put(button_rect(445.0, 205.0), panic_button).clicked() {
+                    if ui.put(button_rect(440.0, 212.0), panic_button).clicked() {
                         setter.set_parameter(&params.clear, true);
                     } else {
                         setter.set_parameter(&params.clear, false);
@@ -344,7 +344,7 @@ impl Plugin for MisoPaste {
 
                     setter.begin_set_parameter(&params.fast_forward);
 
-                    if ui.put(button_rect(305.0, 205.0), ff_button).dragged() {
+                    if ui.put(button_rect(300.0, 212.0), ff_button).dragged() {
                         setter.set_parameter(&params.fast_forward, true);
                     } else {
                         setter.set_parameter(&params.fast_forward, false);
@@ -353,12 +353,12 @@ impl Plugin for MisoPaste {
                     setter.end_set_parameter(&params.fast_forward);
 
                     //play/pause
-                    let play_pause_button = egui::Button::new("Play/Pause");
+                    let play_pause_button = egui::Button::new("PLY");
 
                     setter.begin_set_parameter(&params.play_pause);
 
                     if ui
-                        .put(button_rect(235.0, 205.0), play_pause_button)
+                        .put(button_rect(230.0, 212.0), play_pause_button)
                         .clicked()
                     {
                         setter.set_parameter(&params.play_pause, !&params.play_pause.value());
@@ -372,7 +372,7 @@ impl Plugin for MisoPaste {
 
                     setter.begin_set_parameter(&params.reverse);
 
-                    if ui.put(button_rect(375.0, 205.0), reverse_button).dragged() {
+                    if ui.put(button_rect(370.0, 212.0), reverse_button).dragged() {
                         setter.set_parameter(&params.reverse, true);
                     } else {
                         setter.set_parameter(&params.reverse, false);
@@ -398,21 +398,10 @@ impl Plugin for MisoPaste {
 
                     ui.put(
                         egui::Rect {
-                            min: egui::pos2(10.0, 230.0),
-                            max: egui::pos2(500.0, 250.0),
+                            min: egui::pos2(169.0, 235.0),
+                            max: egui::pos2(496.0, 245.0),
                         },
                         peak_meter_widget,
-                    );
-
-                    let dbg_label =
-                        egui::Label::new(std::env::current_dir().unwrap().to_str().unwrap());
-
-                    ui.put(
-                        egui::Rect {
-                            min: egui::pos2(10.0, 10.0),
-                            max: egui::pos2(512.0, 50.0),
-                        },
-                        dbg_label,
                     );
                 });
             },
